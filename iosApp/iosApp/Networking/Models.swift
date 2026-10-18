@@ -863,6 +863,7 @@ struct EpisodeFile: Codable, Hashable {
 struct FileVersion: Codable, Identifiable, Hashable {
     let fileId: Int
     let fileName: String?
+    let filePath: String?
     let resolution: String?
     let codecVideo: String?
     let codecAudio: String?
@@ -920,10 +921,12 @@ struct FileVersion: Codable, Identifiable, Hashable {
         editionRaw: String? = nil,
         editionKey: String? = nil,
         effectiveAudioTrackIndex: Int? = nil,
-        effectiveAudioLanguage: String? = nil
+        effectiveAudioLanguage: String? = nil,
+        filePath: String? = nil
     ) {
         self.fileId = fileId
         self.fileName = fileName
+        self.filePath = filePath
         self.resolution = resolution
         self.codecVideo = codecVideo
         self.codecAudio = codecAudio

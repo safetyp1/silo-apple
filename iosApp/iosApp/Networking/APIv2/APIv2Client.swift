@@ -1173,6 +1173,33 @@ struct APIv2Client: Sendable {
         return try WatchDetail(v2: HTTPClient.makeJSONDecoder(artworkServerURL: raw.url).decode(APIv2CatalogRead.WatchDetail.self, from: raw.data))
     }
 
+    func prepareVirtualVersion(id: String, fileId: Int, auth: CapturedOrdinaryRequestAuth) async throws {
+        struct Capability: Decodable {
+            let state: String
+            let prepareBeforePlayback: Bool?
+        }
+        try await gate()
+        guard fileId > 0, let profile = auth.profileId, !profile.isEmpty else { return }
+        let identity = Self.requestIdentity(auth, profile: profile)
+        let path = "/api/v2/media/\(try catalogPathSegment(id))/virtual-candidates/\(fileId):prepare"
+        try await tokenStore.withOwnerFence(auth) {
+            try Task.checkCancellation()
+            let capability = try await mapErrors {
+                try await http.requestData(method: "GET", path: "/api/v2/capabilities/virtual-library",
+                    requestIdentity: identity, expectedAccount: auth.account, expectedAuth: auth)
+            }
+            guard capability.statusCode == 200 else { return }
+            let flags = try HTTPClient.makeJSONDecoder().decode(Capability.self, from: capability.data)
+            guard flags.state == "available", flags.prepareBeforePlayback == true else { return }
+            try Task.checkCancellation()
+            let response = try await mapErrors {
+                try await http.requestData(method: "POST", path: path,
+                    requestIdentity: identity, expectedAccount: auth.account, expectedAuth: auth)
+            }
+            guard response.statusCode == 202 else { throw APIv2Error.httpStatus(response.statusCode) }
+        }
+    }
+
     func playbackCapabilities(auth: CapturedOrdinaryRequestAuth) async throws -> APIv2PlaybackCapabilities {
         let raw = try await playbackRequest(method: "GET", suffix: "/capabilities", auth: auth)
         guard raw.statusCode == 200 else { throw PlaybackSequencedError.invalidResponse }

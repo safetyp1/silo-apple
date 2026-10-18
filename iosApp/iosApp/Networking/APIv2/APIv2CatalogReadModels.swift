@@ -254,6 +254,7 @@ enum APIv2CatalogRead {
         let effectiveAudioTrackIndex: Int64?
         let fileId: String
         let fileName: String?
+        let filePath: String?
         let fileSize: Int64
         let hdr: Bool
         let intro: Marker?
@@ -288,6 +289,7 @@ enum APIv2CatalogRead {
         let effectiveAudioTrackIndex: Int64?
         let fileId: String
         let fileName: String?
+        let filePath: String?
         let fileSize: Int64
         let hdr: Bool
         let intro: WatchMarker?

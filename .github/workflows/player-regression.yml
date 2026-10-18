@@ -3,7 +3,7 @@ name: Apple regression
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, feat/early-stream-preparation]
   workflow_dispatch:
     inputs:
       baseline_ref:
@@ -93,6 +93,7 @@ jobs:
           # and tags require full coverage before any ordinary push routing.
           FORCE_PLATFORMS: >-
             ${{ (inputs.release_gate || startsWith(github.ref, 'refs/tags/')) && 'all' ||
+              github.repository == 'safetyp1/silo-apple' && github.ref == 'refs/heads/feat/early-stream-preparation' && 'ios' ||
                 github.event_name == 'workflow_dispatch' &&
                 ((inputs.ios_only || inputs.baseline_ref) && 'ios' || inputs.benchmark_platform || 'all') || '' }}
         run: python3 scripts/ci/select-apple-platforms.py
@@ -103,7 +104,7 @@ jobs:
     # plan skips the matrix; a failed selection is rejected by the result job.
     if: needs.select.result == 'success' && needs.select.outputs.has_platforms == 'true'
     # Same Xcode 27 image as the release builds.
-    runs-on: xcode-27
+    runs-on: ${{ github.repository == 'safetyp1/silo-apple' && 'macos-26' || 'xcode-27' }}
     timeout-minutes: 40
     strategy:
       fail-fast: false

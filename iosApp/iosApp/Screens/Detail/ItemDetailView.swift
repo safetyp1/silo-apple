@@ -347,6 +347,7 @@ private struct ItemDetailPhoneContent: View {
     @State private var preferredNextUpAudioTrackIndex: Int?
     @State private var preferredNextUpSubtitleTrackIndex: Int?
     @State private var nextUpWatchDetail: WatchDetail?
+    @State private var freshNextUpWatchContentId: String?
     /// Keeps the playback selector's footprint occupied while a newly focused
     /// episode is resolving its files and tracks. The series page renders a
     /// same-size skeleton from this state instead of collapsing the stack.
@@ -445,6 +446,19 @@ private struct ItemDetailPhoneContent: View {
             await viewModel.loadDetail(contentId: contentId)
             reseedSubtitleOverride()
         }
+        #if os(iOS)
+        .task(id: preparationTarget?.key) {
+            guard let target = preparationTarget else { return }
+            do {
+                if !target.isExplicit {
+                    try await Task.sleep(for: .milliseconds(350))
+                }
+                try Task.checkCancellation()
+                guard preparationTarget?.key == target.key else { return }
+                try await SiloAPI.shared.prepareVirtualVersion(contentId: target.contentId, fileId: target.fileId)
+            } catch {}
+        }
+        #endif
         .onAppear {
             isPageVisible = true
             // Coming back from the player (or an extra) resumes a poll that
@@ -893,6 +907,36 @@ private struct ItemDetailPhoneContent: View {
         presentPlayerFromDetail(contentId: contentId, startFromBeginning: true, resumePosition: nil)
     }
 
+    #if os(iOS)
+    private var preparationTarget: (key: String, contentId: String, fileId: Int, isExplicit: Bool)? {
+        guard isPageVisible, router.presentedPlayer == nil, let detail = viewModel.detail else { return nil }
+        let targetId: String
+        let version: FileVersion?
+        let explicitFileId: Int?
+        if detail.type == "series" {
+            guard !isLoadingNextUpWatchDetail,
+                  let watch = nextUpWatchDetail,
+                  (preferredNextUpFileId != nil || freshNextUpWatchContentId == watch.contentId),
+                  watch.contentId == playbackEpisode(for: detail)?.contentId else { return nil }
+            targetId = watch.contentId
+            explicitFileId = preferredNextUpFileId
+            version = effectiveVersion(for: watch, versionFileId: explicitFileId)
+        } else {
+            guard ["movie", "episode"].contains(detail.type),
+                  (preferredVersionFileId != nil || viewModel.playbackMetadataReadyContentId == detail.contentId) else { return nil }
+            targetId = detail.contentId
+            explicitFileId = preferredVersionFileId
+            version = effectiveVersion(for: detail, versionFileId: explicitFileId)
+        }
+        guard let version,
+              explicitFileId == nil || version.fileId == explicitFileId,
+              let path = URLComponents(string: version.filePath ?? ""), path.scheme == "virtual",
+              path.queryItems?.contains(where: { $0.name == "result" && !($0.value ?? "").isEmpty }) == true else { return nil }
+        let isExplicit = explicitFileId != nil
+        return ("\(targetId):\(version.fileId):\(isExplicit)", targetId, version.fileId, isExplicit)
+    }
+    #endif
+
     private func playbackFileId(for detail: ItemDetail) -> Int? {
         if let preferredVersionFileId {
             return preferredVersionFileId
@@ -1120,6 +1164,7 @@ private struct ItemDetailPhoneContent: View {
     }
 
     private func loadNextUpWatchDetail(for detail: ItemDetail) async {
+        freshNextUpWatchContentId = nil
         guard let nextUp = playbackEpisode(for: detail) else {
             nextUpWatchDetail = nil
             isLoadingNextUpWatchDetail = false
@@ -1165,6 +1210,7 @@ private struct ItemDetailPhoneContent: View {
                 && preferredNextUpAudioTrackIndex == nil
                 && preferredNextUpSubtitleTrackIndex == seededSubtitleIndex
             nextUpWatchDetail = watchDetail
+            freshNextUpWatchContentId = requestedContentId
             if isUntouched {
                 preferredNextUpSubtitleTrackIndex = launchSubtitleIndex(for: watchDetail)
             }

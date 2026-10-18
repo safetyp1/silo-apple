@@ -208,6 +208,7 @@ extension FileVersion {
     init(catalog value: APIv2CatalogRead.FileVersion) throws {
         self.fileId = try catalogLegacyID(value.fileId)
         self.fileName = value.fileName
+        self.filePath = value.filePath
         self.resolution = value.resolution
         self.codecVideo = value.codecVideo
         self.codecAudio = value.codecAudio
@@ -238,6 +239,7 @@ extension FileVersion {
     init(watch value: APIv2CatalogRead.WatchFileVersion) throws {
         self.fileId = try catalogLegacyID(value.fileId)
         self.fileName = value.fileName
+        self.filePath = value.filePath
         self.resolution = value.resolution
         self.codecVideo = value.codecVideo
         self.codecAudio = value.codecAudio

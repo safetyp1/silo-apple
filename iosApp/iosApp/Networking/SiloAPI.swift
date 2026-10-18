@@ -297,6 +297,12 @@ actor SiloAPI {
         return detail
     }
 
+    func prepareVirtualVersion(contentId: String, fileId: Int) async throws {
+        let auth = try await detailReadAuth()
+        try await apiV2Client.prepareVirtualVersion(id: contentId, fileId: fileId, auth: auth)
+        try await requireCurrentOwner(auth)
+    }
+
     func person(id: String) async throws -> Person {
         let auth = try await detailReadAuth()
         let person = try Person(catalog: try await apiV2Client.catalogPerson(id: id, auth: auth))

@@ -17,6 +17,7 @@ class ItemDetailViewModel {
 
     var detail: ItemDetail?
     var error: ErrorState?
+    private(set) var playbackMetadataReadyContentId: String?
 
     // Catalog metadata and the hierarchy finish independently. An empty array
     // is only an empty result after its request has succeeded.
@@ -30,6 +31,7 @@ class ItemDetailViewModel {
     /// Also invalidates unstructured retry tasks when the route disappears.
     func cancelDetailLoading() {
         detailLoadGeneration += 1
+        playbackMetadataReadyContentId = nil
         _ = beginDetailWrite()
         seasonsLoadGeneration += 1
         episodeLoadGeneration += 1
@@ -228,6 +230,7 @@ class ItemDetailViewModel {
     ) async {
         guard !Task.isCancelled else { return }
         detailLoadGeneration += 1
+        playbackMetadataReadyContentId = nil
         let loadGeneration = detailLoadGeneration
         if let detail, detail.contentId != contentId {
             seasonsLoadGeneration += 1
@@ -431,6 +434,7 @@ class ItemDetailViewModel {
             initial = item
         }
 
+        playbackMetadataReadyContentId = nil
         detail = initial
         ResponseCache.shared.set(initial, for: CacheKey.itemDetail(contentId, libraryId: libraryId))
 
@@ -447,6 +451,7 @@ class ItemDetailViewModel {
                   generation == self.detailGeneration else { return }
 
             self.detail = enriched
+            self.playbackMetadataReadyContentId = contentId
             ResponseCache.shared.set(enriched, for: CacheKey.itemDetail(contentId, libraryId: libraryId))
             self.playbackEnrichmentTask = nil
         }
